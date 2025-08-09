@@ -24,5 +24,3 @@ dist-ssr
 *.sw?
 
 # Environment variables and secrets
-.env
-.env.*
