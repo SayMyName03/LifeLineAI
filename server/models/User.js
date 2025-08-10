@@ -6,6 +6,8 @@ const UserSchema = new mongoose.Schema({
   googleId:   { type: String },
   githubId:   { type: String },
   name:       { type: String },
+  role:       { type: String, enum: ['clinician','hospital','admin'], default: 'clinician' },
+  hospitalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hospital' },
   createdAt:  { type: Date, default: Date.now }
 });
 

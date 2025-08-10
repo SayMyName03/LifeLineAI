@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import LoginForm from "@/components/LoginForm";
 import NearestHospital from "./pages/NearestHospital";
+import HospitalDashboard from "./pages/HospitalDashboard";
 
 // Helper component to handle navigation from LandingPage
 function LandingPageWithNav() {
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/login" element={<LoginForm />} />
             <Route path="/triage" element={<Index />} />
             <Route path="/nearest-hospital" element={<NearestHospital />} />
+            <Route path="/hospital/dashboard" element={<HospitalDashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
