@@ -15,13 +15,16 @@ interface PatientData {
   symptoms: string[];
 }
 
+import CriticalityDoughnutChart from "./CriticalityDoughnutChart";
+
 interface PatientDataPreviewProps {
   data: PatientData;
+  criticalityScore?: number | null;
   onEdit: () => void;
   onConfirm: () => void;
 }
 
-const PatientDataPreview: React.FC<PatientDataPreviewProps> = ({ data, onEdit, onConfirm }) => {
+const PatientDataPreview: React.FC<PatientDataPreviewProps> = ({ data, criticalityScore, onEdit, onConfirm }) => {
   // Logout handler
   const handleLogout = async () => {
     try {
@@ -174,6 +177,19 @@ const PatientDataPreview: React.FC<PatientDataPreviewProps> = ({ data, onEdit, o
           </div>
         </div>
 
+        {/* Criticality Score Chart (always visible on preview) */}
+        <div className="flex flex-col items-center mt-10 mb-8 w-full">
+          <h3 className="text-2xl font-bold text-foreground-800 mb-2 text-center">Criticality Score</h3>
+          <div className="flex flex-col items-center justify-center w-full">
+            <div style={{ width: '12rem', height: '12rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #e5e7eb', borderRadius: '1rem', background: '#f9fafb', marginBottom: '0.5rem' }}>
+              {typeof criticalityScore === 'number' && !isNaN(criticalityScore) && criticalityScore > 0 ? (
+                <CriticalityDoughnutChart score={criticalityScore} />
+              ) : (
+                <span style={{ color: '#64748b', fontWeight: 500 }}>No score available</span>
+              )}
+            </div>
+          </div>
+        </div>
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
           <Button

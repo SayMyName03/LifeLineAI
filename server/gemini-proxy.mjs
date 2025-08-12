@@ -40,8 +40,13 @@ app.post('/api/gemini', async (req, res) => {
 
     // Extract the criticality score (expects "Criticality Score: X/10" as the first line)
     const lines = instructions.split('\n').map(line => line.trim()).filter(Boolean);
-    const scoreLine = lines.find(line => /^Criticality Score: \d+\/10/.test(line));
-    const score = scoreLine ? scoreLine.replace('Criticality Score: ', '') : 'N/A';
+    let scoreLine = lines.find(line => /^Criticality Score: \d+\/10/.test(line));
+    let score = scoreLine ? scoreLine.replace('Criticality Score: ', '') : null;
+    // If not found, fallback to 1/10
+    if (!score || !/^\d+\/10$/.test(score)) {
+      score = '1/10';
+      scoreLine = 'Criticality Score: 1/10';
+    }
 
     // Extract up to 10 numbered steps (e.g., "1. ...", "2. ...")
     const steps = lines
@@ -56,9 +61,10 @@ app.post('/api/gemini', async (req, res) => {
           .slice(0, 10)
           .join('\n');
 
+    // Always include the score line at the top for clarity
     res.json({
       score,
-      instructions: formattedInstructions
+      instructions: `${scoreLine}\n${formattedInstructions}`
     });
   } catch (err) {
     res.status(500).json({ error: 'Server error', details: err.message });

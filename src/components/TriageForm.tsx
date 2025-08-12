@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import CriticalityDoughnutChart from "./CriticalityDoughnutChart";
 import { useToast } from "@/hooks/use-toast";
 
 interface PatientData {
@@ -71,9 +72,13 @@ const TriageForm: React.FC<TriageFormProps> = ({ onSubmit }) => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const [instructions, setInstructions] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [hasPredicted, setHasPredicted] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     // Basic validation
     if (!formData.patientName || !formData.age || !formData.gender) {
       toast({
@@ -83,12 +88,33 @@ const TriageForm: React.FC<TriageFormProps> = ({ onSubmit }) => {
       });
       return;
     }
-
+  setLoading(true);
+  setInstructions("");
+  setHasPredicted(false);
+    try {
+      const response = await fetch("http://localhost:5002/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patientData: formData })
+      });
+      if (!response.ok) throw new Error("Gemini API error");
+      const data = await response.json();
+      // score is like "7/10"; extract number
+      let scoreNum = 4;
+      if (typeof data.score === "string" && /^\d+\/10$/.test(data.score)) {
+        scoreNum = parseInt(data.score.split("/")[0], 10);
+      }
+      setCriticalityScore(scoreNum);
+      setInstructions(data.instructions || "");
+      setHasPredicted(true);
+  // No toast for score, chart will show result or error
+    } catch (err) {
+  setCriticalityScore(-1); // Show error in chart
+  setHasPredicted(true);
+    } finally {
+      setLoading(false);
+    }
     onSubmit(formData);
-    toast({
-      title: "Patient Data Submitted",
-      description: "Triage evaluation has been initiated.",
-    });
   };
 
   // Logout handler
@@ -100,6 +126,9 @@ const TriageForm: React.FC<TriageFormProps> = ({ onSubmit }) => {
       toast({ title: 'Logout Failed', description: 'Could not log out. Please try again.', variant: 'destructive' });
     }
   };
+
+  // For demonstration, use a mock score. Replace with real logic as needed.
+  const [criticalityScore, setCriticalityScore] = useState<number>(4);
 
   return (
     <Card className="w-full max-w-4xl mx-auto shadow-xl">
@@ -241,6 +270,8 @@ const TriageForm: React.FC<TriageFormProps> = ({ onSubmit }) => {
             </div>
           </div>
 
+
+
           {/* Symptoms */}
           <div className="space-y-4">
             <Label className="text-xl font-bold text-foreground-800">Symptoms (Select all that apply)</Label>
@@ -263,6 +294,19 @@ const TriageForm: React.FC<TriageFormProps> = ({ onSubmit }) => {
               ))}
             </div>
           </div>
+          {/* Criticality Score Chart Section - only visible after prediction */}
+          {hasPredicted && (
+            <div className="flex flex-col items-center mt-10 mb-4">
+              <h3 className="text-2xl font-bold text-foreground-800 mb-2">Criticality Score</h3>
+              <div style={{ width: '12rem', height: '12rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #e5e7eb', borderRadius: '1rem', background: '#f9fafb' }}>
+                {loading ? (
+                  <span style={{ color: '#2563eb', fontWeight: 600 }}>Predicting...</span>
+                ) : (
+                  <CriticalityDoughnutChart score={criticalityScore} />
+                )}
+              </div>
+            </div>
+          )}
 
          {/* Additional Information */}
           <div className="space-y-2">
@@ -283,10 +327,20 @@ const TriageForm: React.FC<TriageFormProps> = ({ onSubmit }) => {
             <Button
               type="submit"
               className="h-16 px-12 text-xl font-bold bg-emergency-600 hover:bg-emergency-700 text-white rounded-xl shadow-lg transition-all duration-200 transform hover:scale-105"
+              disabled={loading}
             >
-              Evaluate Triage
+              {loading ? "Evaluating..." : "Evaluate Triage"}
             </Button>
           </div>
+
+          {/* (Removed duplicate chart rendering) */}
+          {/* Show Gemini instructions if available */}
+          {instructions && (
+            <div className="mt-8 p-6 bg-blue-50 rounded-xl border border-blue-200">
+              <h4 className="text-lg font-bold mb-2 text-blue-900">Gemini Recommendations</h4>
+              <pre className="whitespace-pre-wrap text-base text-blue-900">{instructions}</pre>
+            </div>
+          )}
         </form>
       </CardContent>
     </Card>
