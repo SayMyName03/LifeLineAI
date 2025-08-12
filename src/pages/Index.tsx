@@ -110,9 +110,20 @@ const Index = () => {
         }),
       });
       if (!response.ok) throw new Error('Submission failed');
+      // Expect backend returns created triage record (with _id)
+      const triageRecord = await response.json().catch(()=> null);
+      if (triageRecord && triageRecord._id) {
+        // Persist minimal data so hospital selection page can dispatch it
+        sessionStorage.setItem('currentTriage', JSON.stringify({
+          triageId: triageRecord._id,
+          patient: patientData,
+          aiScore: aiScore ? Number(aiScore) : null,
+          aiInstructions: aiInstructions || instructions || ""
+        }));
+      }
       toast({
         title: 'Triage Submitted',
-        description: 'Patient triage saved. Choose a hospital next.'
+        description: 'Patient triage saved. Choose a hospital to notify next.'
       });
       // reset local triage state and navigate
       setPatientData(null);

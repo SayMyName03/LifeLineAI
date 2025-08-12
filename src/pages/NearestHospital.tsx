@@ -32,6 +32,12 @@ const NearestHospital = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [maxKm, setMaxKm] = useState(25);
+  const [selectedHospitalId,setSelectedHospitalId] = useState<string | null>(null);
+  const [dispatching,setDispatching] = useState(false);
+
+  const currentTriage = React.useMemo(() => {
+    try { return JSON.parse(sessionStorage.getItem('currentTriage') || 'null'); } catch { return null; }
+  },[]);
 
   const fetchHospitals = async (lat:number,lng:number, radiusKm:number) => {
     setLoading(true);
@@ -98,11 +104,38 @@ const NearestHospital = () => {
                   const lng = h.location?.coordinates?.[0];
                   const dist = h.distKm ?? (lat && lng && userLoc ? getDistance(userLoc.lat,userLoc.lng,lat,lng) : undefined);
                   return (
-                    <div key={h._id || idx} className={`relative bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 transition-transform duration-200 hover:-translate-y-1 hover:shadow-2xl border border-gray-100 dark:border-gray-700 ${idx === 0 ? 'border-2 border-emergency-500' : ''}`}>
+                    <div key={h._id || idx} className={`relative bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 transition-transform duration-200 hover:-translate-y-1 hover:shadow-2xl border ${selectedHospitalId === h._id ? 'border-2 border-blue-600' : idx === 0 ? 'border-2 border-emergency-500' : 'border-gray-100 dark:border-gray-700'}`}>
                       <div className="flex items-center gap-3 mb-2">
                         <Hospital className="w-7 h-7 text-medical-500" />
                         <h2 className="text-2xl font-bold text-medical-700 dark:text-medical-200">{h.name}</h2>
                         {idx === 0 && <span className="ml-2 px-3 py-1 rounded-full bg-emergency-500 text-white text-xs font-bold animate-pulse">Nearest</span>}
+                      </div>
+                      <div className="flex gap-2 mb-2">
+                        <button onClick={()=> setSelectedHospitalId(h._id)} className={`px-3 py-1 text-xs rounded ${selectedHospitalId === h._id ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200'}`}>{selectedHospitalId === h._id ? 'Selected' : 'Select'}</button>
+                        {selectedHospitalId === h._id && currentTriage && (
+                          <button disabled={dispatching} onClick={async ()=> {
+                            if(!currentTriage) return; setDispatching(true);
+                            try {
+                              const res = await fetch('http://localhost:5001/api/alerts/dispatch', {
+                                method:'POST',
+                                headers:{'Content-Type':'application/json'},
+                                credentials:'include',
+                                body: JSON.stringify({
+                                  hospitalId: h._id,
+                                  triageId: currentTriage.triageId,
+                                  patient: currentTriage.patient,
+                                  aiScore: currentTriage.aiScore,
+                                  aiInstructions: currentTriage.aiInstructions
+                                })
+                              });
+                              if(!res.ok) throw new Error('Failed to dispatch');
+                              // On success we could redirect or clear the stored triage
+                              sessionStorage.removeItem('currentTriage');
+                            } catch(e){
+                              console.error(e);
+                            } finally { setDispatching(false); }
+                          }} className="px-3 py-1 text-xs rounded bg-emergency-500 text-white hover:bg-emergency-600">{dispatching ? 'Sending...' : 'Notify Hospital'}</button>
+                        )}
                       </div>
                       {dist !== undefined && (
                         <div className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
