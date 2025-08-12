@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 interface Hospital {
   _id?: string;
   place_id?: string;
+  uniqueId?: string;  // Added for reliable selection tracking
   name: string;
   location?: { type: string; coordinates: [number, number] }; // [lng, lat]
   address?: string;
@@ -70,6 +71,7 @@ const HospitalSelector: React.FC<HospitalSelectorProps> = ({
   const fetchNearbyHospitals = async (lat: number, lng: number, radiusKm: number) => {
     setLoading(true);
     setError("");
+    setSelectedHospital(null); // Reset selection when fetching new hospitals
     
     try {
       // First try to get from our database
@@ -81,8 +83,9 @@ const HospitalSelector: React.FC<HospitalSelectorProps> = ({
       
       if (dbResponse.ok) {
         const dbHospitals = await dbResponse.json();
-        hospitalList = dbHospitals.map((h: any) => ({
+        hospitalList = dbHospitals.map((h: any, index: number) => ({
           ...h,
+          uniqueId: h._id || `db_${index}`, // Create unique identifier
           distKm: h.location?.coordinates ? 
             getDistance(lat, lng, h.location.coordinates[1], h.location.coordinates[0]) : 
             undefined
@@ -97,8 +100,9 @@ const HospitalSelector: React.FC<HospitalSelectorProps> = ({
         
         if (placesResponse.ok) {
           const placesHospitals = await placesResponse.json();
-          const placesFormatted = placesHospitals.map((place: any) => ({
+          const placesFormatted = placesHospitals.map((place: any, index: number) => ({
             place_id: place.place_id,
+            uniqueId: place.place_id || `places_${index}`, // Create unique identifier
             name: place.name,
             address: place.vicinity || place.formatted_address,
             location: {
@@ -137,7 +141,11 @@ const HospitalSelector: React.FC<HospitalSelectorProps> = ({
       // Sort by distance and filter by radius
       hospitalList = hospitalList
         .filter(h => h.distKm && h.distKm <= radiusKm)
-        .sort((a, b) => (a.distKm || 0) - (b.distKm || 0));
+        .sort((a, b) => (a.distKm || 0) - (b.distKm || 0))
+        .map((h, index) => ({
+          ...h,
+          uniqueId: h.uniqueId || `hospital_${index}` // Ensure every hospital has a unique ID
+        }));
 
       setHospitals(hospitalList);
       
@@ -307,14 +315,13 @@ const HospitalSelector: React.FC<HospitalSelectorProps> = ({
             )}
             
             {!loading && hospitals.map((hospital, idx) => {
-              const isSelected = selectedHospital?._id === hospital._id || 
-                                selectedHospital?.place_id === hospital.place_id;
+              const isSelected = selectedHospital?.uniqueId === hospital.uniqueId;
               const lat = hospital.location?.coordinates?.[1];
               const lng = hospital.location?.coordinates?.[0];
               
               return (
                 <Card 
-                  key={hospital._id || hospital.place_id || idx} 
+                  key={hospital.uniqueId || hospital._id || hospital.place_id || idx} 
                   className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
                     isSelected 
                       ? 'border-2 border-emergency-500 bg-emergency-50 dark:bg-emergency-900/20' 
