@@ -15,4 +15,7 @@ const HospitalSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// Ensure geospatial index on location
+HospitalSchema.index({ location: '2dsphere' });
+
 export default mongoose.model('Hospital', HospitalSchema);

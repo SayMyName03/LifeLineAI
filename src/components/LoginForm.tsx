@@ -5,6 +5,7 @@ const LoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isRegister, setIsRegister] = useState(false);
+  const [role, setRole] = useState<'clinician' | 'hospital'>('clinician');
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [videoIndex, setVideoIndex] = useState(0);
@@ -17,11 +18,11 @@ const LoginForm = () => {
     setLoading(true);
     try {
       if (isRegister) {
-        // Registration
+        // Registration with chosen role
         const res = await fetch("http://localhost:5001/api/users", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, role }),
         });
         if (!res.ok) {
           const data = await res.json();
@@ -34,13 +35,13 @@ const LoginForm = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password }), // role not needed for local login unless switching later
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Login failed");
       }
-      navigate("/triage");
+      navigate(role === 'hospital' ? '/hospital/dashboard' : '/triage');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -116,8 +117,21 @@ const LoginForm = () => {
         </svg>
 
         <h2 className="text-center text-2xl font-bold text-gray-900">
-          Sign in to your account
+          {isRegister ? 'Create an account' : 'Sign in to your account'}
         </h2>
+        <div className="mt-4 flex justify-center gap-3" role="tablist" aria-label="Select role">
+          {(['clinician','hospital'] as const).map(r => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setRole(r)}
+              className={`px-4 py-1 rounded-full text-sm font-medium border transition-colors ${role===r ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white/70 backdrop-blur border-gray-300 text-gray-700 hover:bg-white'}`}
+              aria-pressed={role===r}
+            >
+              {r === 'clinician' ? 'Clinician' : 'Hospital'}
+            </button>
+          ))}
+        </div>
       </div>
 
 
@@ -162,7 +176,7 @@ const LoginForm = () => {
           disabled={loading}
           className="w-full flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-white font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          {loading ? (isRegister ? "Registering..." : "Signing in...") : (isRegister ? "Register" : "Sign in")}
+          {loading ? (isRegister ? "Registering..." : "Signing in...") : (isRegister ? `Register as ${role==='hospital' ? 'Hospital' : 'Clinician'}` : `Sign in as ${role==='hospital' ? 'Hospital' : 'Clinician'}`)}
         </button>
       </form>
 
@@ -187,7 +201,7 @@ const LoginForm = () => {
         <div className="mt-4 flex gap-4">
           {/* Google Login */}
           <a
-            href="http://localhost:5001/auth/google"
+            href={`http://localhost:5001/auth/google?role=${role}`}
             className="flex-1 flex items-center justify-center rounded-md border border-gray-300 bg-white py-2 px-4 text-gray-700 hover:bg-gray-50"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5 mr-2" aria-hidden="true">

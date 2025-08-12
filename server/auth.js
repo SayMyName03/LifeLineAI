@@ -115,10 +115,41 @@ app.post("/auth/login", passport.authenticate("local"), (req, res) => {
   res.json({ user: req.user });
 });
 
-app.get("/auth/google", passport.authenticate("google", { scope: ["profile", "email"] }));
+// Capture desired role via query (?role=clinician|hospital) before kicking off Google OAuth
+app.get("/auth/google", (req, res, next) => {
+  const { role } = req.query;
+  let state;
+  if (role === 'clinician' || role === 'hospital') {
+    // store in session and also embed in OAuth state so we have two ways to retrieve
+    req.session.oauthDesiredRole = role;
+    state = role; // simple state string
+  }
+  passport.authenticate("google", { scope: ["profile", "email"], state })(req, res, next);
+});
 
-app.get("/auth/google/callback", passport.authenticate("google", { failureRedirect: "/auth/google/failure" }), (req, res) => {
-  res.redirect(process.env.FRONTEND_POST_LOGIN || "http://localhost:8080/triage");
+app.get("/auth/google/callback", passport.authenticate("google", { failureRedirect: "/auth/google/failure" }), async (req, res) => {
+  try {
+    // prefer state param from Google callback, fallback to session
+    const stateRole = (req.query.state === 'hospital' || req.query.state === 'clinician') ? req.query.state : undefined;
+    const sessionRole = req.session.oauthDesiredRole;
+    const desired = stateRole || sessionRole;
+    if (desired && (desired === 'clinician' || desired === 'hospital') && req.user.role !== desired) {
+      req.user.role = desired;
+      await req.user.save();
+    }
+  } catch (e) {
+    console.error('Post Google role assignment error:', e);
+  } finally {
+    let origin = 'http://localhost:8080';
+    if (process.env.FRONTEND_ORIGIN) {
+      origin = process.env.FRONTEND_ORIGIN.replace(/\/$/, '');
+    } else if (process.env.FRONTEND_POST_LOGIN) {
+      try { origin = new URL(process.env.FRONTEND_POST_LOGIN).origin; } catch {}
+    }
+    const destPath = req.user.role === 'hospital' ? '/hospital/dashboard' : '/triage';
+    if (req.session.oauthDesiredRole) delete req.session.oauthDesiredRole;
+    res.redirect(origin + destPath);
+  }
 });
 
 app.get('/auth/google/failure', (req,res) => {
@@ -146,9 +177,10 @@ app.get("/auth/me", (req, res) => {
 // === USER REGISTRATION ===
 app.post("/api/users", async (req, res) => {
   try {
-    const { password, ...rest } = req.body;
+    const { password, role, ...rest } = req.body;
+    const permittedRole = (role === 'hospital' || role === 'clinician') ? role : undefined; // admin cannot be self-assigned here
     const hash = await bcrypt.hash(password, 10);
-    const user = new User({ ...rest, password: hash });
+    const user = new User({ ...rest, password: hash, ...(permittedRole ? { role: permittedRole } : {}) });
     await user.save();
     res.status(201).json(user);
   } catch (err) {
@@ -183,6 +215,26 @@ app.get('/api/hospitals', async (req,res) => {
   const filter = service ? { services: service } : {};
   const list = await Hospital.find(filter).limit(100);
   res.json(list);
+});
+
+// Nearby hospitals by user lat,lng (query params: lat, lng, maxKm optional)
+app.get('/api/hospitals/nearby', async (req,res) => {
+  try {
+    const { lat, lng, maxKm = 50 } = req.query;
+    if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' });
+    const maxDistanceMeters = Number(maxKm) * 1000;
+    const list = await Hospital.find({
+      location: {
+        $near: {
+          $geometry: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
+          $maxDistance: maxDistanceMeters
+        }
+      }
+    }).limit(50);
+    res.json(list);
+  } catch(err){
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // === ALERT CREATION ===
