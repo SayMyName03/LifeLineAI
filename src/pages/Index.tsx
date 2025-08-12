@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import TriageForm from '@/components/TriageForm';
 import PatientDataPreview from '@/components/PatientDataPreview';
-import HospitalSelector from '@/components/HospitalSelector';
 import { useToast } from "@/hooks/use-toast";
 import { getGeminiInstructions } from '@/lib/gemini';
 
@@ -38,8 +37,7 @@ const Index = () => {
 
   const [patientData, setPatientData] = useState<PatientData | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [showHospitalSelector, setShowHospitalSelector] = useState(false);
-  const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
+  // Removed in simplified flow: hospital selection handled on separate page
   const [instructions, setInstructions] = useState<string | null>(null);
   const [loadingInstructions, setLoadingInstructions] = useState(false);
   const { toast } = useToast();
@@ -93,88 +91,38 @@ const Index = () => {
 
   const handleEdit = () => {
     setShowPreview(false);
-    setShowHospitalSelector(false);
+    // nothing extra now
   };
 
   const handleConfirm = async () => {
     if (!patientData) return;
-    
-    // Move to hospital selection instead of immediate submission
-    setShowHospitalSelector(true);
-  };
-
-  const handleBackToPreview = () => {
-    setShowHospitalSelector(false);
-    setShowPreview(true);
-  };
-
-  const handleHospitalSelected = async (hospital: Hospital, patient: PatientData) => {
+    // Directly submit triage then navigate to nearest hospital page
     try {
-      // Submit triage data with selected hospital
       const response = await fetch("http://localhost:5001/api/triage", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          ...patient,
-          additionalInfo: patient.additionalInfo || "",
+          ...patientData,
+          additionalInfo: patientData.additionalInfo || "",
           aiScore: aiScore ? Number(aiScore) : null,
           aiInstructions: aiInstructions || instructions || "",
-          selectedHospitalId: hospital._id || hospital.place_id,
-          selectedHospitalName: hospital.name,
-          selectedHospitalAddress: hospital.address,
         }),
       });
-      
-      if (!response.ok) throw new Error("Submission failed");
-      
-      const triageResult = await response.json();
-      
-      // Create alert for the selected hospital
-      if (hospital._id) { // Only if it's a hospital from our database
-        try {
-          await fetch("http://localhost:5001/api/alerts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
-              triageId: triageResult.triage._id,
-              hospitalId: hospital._id,
-              priority: aiScore ? (Number(aiScore) >= 7 ? 'high' : Number(aiScore) >= 4 ? 'medium' : 'low') : 'medium',
-              vitalsSummary: `HR: ${patient.heartRate || 'N/A'}, BP: ${patient.systolicBP || 'N/A'}/${patient.diastolicBP || 'N/A'}, Temp: ${patient.temperature || 'N/A'}°C, O2: ${patient.oxygenSaturation || 'N/A'}%`,
-              symptomsSummary: patient.symptoms.join(', '),
-              etaSeconds: Math.round((hospital.distKm || 5) * 120) // Rough ETA: 2 minutes per km
-            }),
-          });
-        } catch (alertError) {
-          console.warn('Failed to create hospital alert:', alertError);
-        }
-      }
-      
+      if (!response.ok) throw new Error('Submission failed');
       toast({
-        title: "Emergency Alert Sent Successfully",
-        description: `${hospital.name} has been notified about ${patient.patientName}.`,
+        title: 'Triage Submitted',
+        description: 'Patient triage saved. Choose a hospital next.'
       });
-      
-      // Reset form
+      // reset local triage state and navigate
       setPatientData(null);
       setShowPreview(false);
-      setShowHospitalSelector(false);
-      setSelectedHospital(null);
       setInstructions(null);
       setAiScore(null);
       setAiInstructions(null);
-      
-      // Navigate to success page or hospital info
       navigate('/nearest-hospital');
-      
-    } catch (err) {
-      console.error('Submission error:', err);
-      toast({
-        title: "Submission Failed",
-        description: "Could not send emergency alert. Please try again.",
-        variant: "destructive"
-      });
+    } catch (err){
+      toast({ title: 'Submission Failed', description: 'Could not save triage.', variant: 'destructive' });
     }
   };
 
@@ -196,25 +144,13 @@ const Index = () => {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
-        {!showPreview && !showHospitalSelector ? (
+  {!showPreview ? (
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
           >
             <TriageForm onSubmit={handleFormSubmit} />
-          </motion.div>
-        ) : showHospitalSelector && patientData ? (
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-          >
-            <HospitalSelector
-              patientData={patientData}
-              onHospitalSelected={handleHospitalSelected}
-              onBack={handleBackToPreview}
-            />
           </motion.div>
         ) : (
           <>
