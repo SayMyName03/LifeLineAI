@@ -2,39 +2,87 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
+/* Emergency Dashboard Design System - Medical Grade Interface */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Dark theme optimized for 24/7 monitoring displays */
+    --background: 222 20% 8%;
+    --foreground: 210 40% 95%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 222 15% 12%;
+    --card-foreground: 210 40% 95%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 222 15% 12%;
+    --popover-foreground: 210 40% 95%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Medical blue theme */
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 20% 8%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 222 15% 18%;
+    --secondary-foreground: 210 40% 95%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 222 15% 15%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 222 20% 8%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 222 15% 18%;
+    --input: 222 15% 18%;
+    --ring: 217 91% 60%;
 
-    --radius: 0.5rem;
+    /* Severity color system */
+    --critical: 0 84% 60%;
+    --critical-foreground: 210 40% 98%;
+    --serious: 25 95% 53%;
+    --serious-foreground: 222 20% 8%;
+    --moderate: 45 93% 47%;
+    --moderate-foreground: 222 20% 8%;
+
+    /* Medical status colors */
+    --success: 142 76% 36%;
+    --success-foreground: 210 40% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 20% 8%;
+
+    /* Gradients for depth */
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(217 91% 60%),
+      hsl(217 91% 50%)
+    );
+    --gradient-card: linear-gradient(
+      135deg,
+      hsl(222 15% 12%),
+      hsl(222 15% 14%)
+    );
+    --gradient-critical: linear-gradient(
+      135deg,
+      hsl(0 84% 60%),
+      hsl(0 84% 50%)
+    );
+    --gradient-serious: linear-gradient(
+      135deg,
+      hsl(25 95% 53%),
+      hsl(25 95% 48%)
+    );
+    --gradient-moderate: linear-gradient(
+      135deg,
+      hsl(45 93% 47%),
+      hsl(45 93% 42%)
+    );
+
+    /* Shadows for medical displays */
+    --shadow-card: 0 4px 20px hsl(222 20% 4% / 0.3);
+    --shadow-patient: 0 8px 30px hsl(222 20% 4% / 0.4);
+    --shadow-critical: 0 0 30px hsl(0 84% 60% / 0.3);
+
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -53,42 +101,15 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+  .light {
+    /* Light theme for daytime use if needed */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
   }
 }
 
@@ -98,53 +119,77 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Custom scrollbar for medical displays */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-muted;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary rounded-full;
   }
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+@layer components {
+  /* Patient severity variants */
+  .patient-critical {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--critical) / 0.2),
+      hsl(var(--critical) / 0.1)
+    );
+    border-color: hsl(var(--critical) / 0.5);
+    box-shadow: 0 0 20px hsl(var(--critical) / 0.2);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
+  .patient-serious {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--serious) / 0.2),
+      hsl(var(--serious) / 0.1)
+    );
+    border-color: hsl(var(--serious) / 0.5);
+    box-shadow: 0 0 20px hsl(var(--serious) / 0.2);
   }
-  33% {
-    transform: translateY(-10px) rotate(2deg);
-  }
-  66% {
-    transform: translateY(5px) rotate(-1deg);
-  }
-}
 
-@keyframes drift {
-  0% {
-    transform: translateX(0px);
+  .patient-moderate {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--moderate) / 0.2),
+      hsl(var(--moderate) / 0.1)
+    );
+    border-color: hsl(var(--moderate) / 0.5);
+    box-shadow: 0 0 20px hsl(var(--moderate) / 0.2);
   }
-  50% {
-    transform: translateX(20px);
+
+  /* Pulse animation for critical patients */
+  .pulse-critical {
+    animation: pulse-critical 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
-  100% {
-    transform: translateX(0px);
+
+  @keyframes pulse-critical {
+    0%,
+    100% {
+      box-shadow: 0 0 20px hsl(var(--critical) / 0.2);
+    }
+    50% {
+      box-shadow: 0 0 30px hsl(var(--critical) / 0.4);
+    }
   }
-}
 
-.animate-fade-in {
-  animation: fadeIn 0.6s ease-out forwards;
-}
+  /* Status indicators */
+  .status-online {
+    background: hsl(var(--success));
+  }
 
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-.animate-drift {
-  animation: drift 8s ease-in-out infinite;
+  .status-offline {
+    background: hsl(var(--destructive));
+  }
 }
