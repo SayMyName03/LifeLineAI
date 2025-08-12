@@ -1,101 +1,223 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { BadgeCheck, Clock, AlertTriangle } from 'lucide-react';
-// @ts-ignore - will require installation of socket.io-client
-import { io } from 'socket.io-client';
+import React from "react";
+import HospitalHeader from "@/components/HospitalHeader";
+import PatientCard from "@/components/PatientCard";
+import PatientDetails from "@/components/PatientDetails";
+import { Hospital, Patient } from "@/types/patient";
 
-interface AlertItem {
-  _id: string;
-  priority?: string;
-  status: string;
-  vitalsSummary?: string;
-  symptomsSummary?: string;
-  etaSeconds?: number;
-  createdAt: string;
-}
-
-const statusColors: Record<string,string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  acknowledged: 'bg-blue-100 text-blue-800',
-  arrived: 'bg-green-100 text-green-800',
-  cancelled: 'bg-gray-200 text-gray-700'
+const mockHospital: Hospital = {
+  name: "St. Mary's General Hospital",
+  location: { lat: 0, lng: 0 },
+  totalBeds: 120,
+  availableBeds: 28,
+  status: "online",
 };
 
+const mockPatients: Patient[] = [
+  {
+    id: "PAT-001",
+    ticketNumber: "T0001",
+    severity: "moderate",
+    eta: "1 min",
+    location: { lat: 0, lng: 0, address: "Medical Plaza" },
+    vitals: {
+      heartRate: 80,
+      bloodPressure: { systolic: 120, diastolic: 80 },
+      oxygenSaturation: 98,
+      temperature: 37,
+      respiratoryRate: 16,
+    },
+    condition: "Severe Laceration",
+    ambulanceId: "AMB-19",
+    age: 39,
+    gender: "F",
+    status: "incoming",
+  },
+  {
+    id: "PAT-002",
+    ticketNumber: "T0002",
+    severity: "moderate",
+    eta: "1 min",
+    location: { lat: 0, lng: 0, address: "5th Street Bridge" },
+    vitals: {
+      heartRate: 85,
+      bloodPressure: { systolic: 118, diastolic: 78 },
+      oxygenSaturation: 97,
+      temperature: 36.8,
+      respiratoryRate: 18,
+    },
+    condition: "Respiratory Distress",
+    ambulanceId: "AMB-2",
+    age: 43,
+    gender: "F",
+    status: "incoming",
+  },
+  {
+    id: "PAT-003",
+    ticketNumber: "T0003",
+    severity: "serious",
+    eta: "1 min",
+    location: { lat: 0, lng: 0, address: "456 Pine Avenue" },
+    vitals: {
+      heartRate: 110,
+      bloodPressure: { systolic: 130, diastolic: 85 },
+      oxygenSaturation: 95,
+      temperature: 38.2,
+      respiratoryRate: 22,
+    },
+    condition: "Respiratory Distress",
+    ambulanceId: "AMB-2",
+    age: 38,
+    gender: "M",
+    status: "incoming",
+  },
+  {
+    id: "PAT-004",
+    ticketNumber: "T0004",
+    severity: "critical",
+    eta: "1 min",
+    location: { lat: 0, lng: 0, address: "Medical Plaza" },
+    vitals: {
+      heartRate: 120,
+      bloodPressure: { systolic: 140, diastolic: 90 },
+      oxygenSaturation: 92,
+      temperature: 39,
+      respiratoryRate: 28,
+    },
+    condition: "Respiratory Distress",
+    ambulanceId: "AMB-13",
+    age: 18,
+    gender: "M",
+    status: "incoming",
+  },
+  {
+    id: "PAT-005",
+    ticketNumber: "T0005",
+    severity: "moderate",
+    eta: "1 min",
+    location: { lat: 0, lng: 0, address: "1st Ave & Main St" },
+    vitals: {
+      heartRate: 78,
+      bloodPressure: { systolic: 115, diastolic: 75 },
+      oxygenSaturation: 99,
+      temperature: 36.5,
+      respiratoryRate: 15,
+    },
+    condition: "Allergic Reaction",
+    ambulanceId: "AMB-19",
+    age: 30,
+    gender: "M",
+    status: "incoming",
+  },
+  {
+    id: "PAT-006",
+    ticketNumber: "T0006",
+    severity: "critical",
+    eta: "1 min",
+    location: { lat: 0, lng: 0, address: "Airport Terminal" },
+    vitals: {
+      heartRate: 125,
+      bloodPressure: { systolic: 145, diastolic: 95 },
+      oxygenSaturation: 90,
+      temperature: 39.5,
+      respiratoryRate: 30,
+    },
+    condition: "Severe Laceration",
+    ambulanceId: "AMB-2",
+    age: 51,
+    gender: "M",
+    status: "incoming",
+  },
+  {
+    id: "PAT-007",
+    ticketNumber: "T0007",
+    severity: "critical",
+    eta: "1 min",
+    location: { lat: 0, lng: 0, address: "Airport Terminal" },
+    vitals: {
+      heartRate: 130,
+      bloodPressure: { systolic: 150, diastolic: 100 },
+      oxygenSaturation: 88,
+      temperature: 40,
+      respiratoryRate: 32,
+    },
+    condition: "Chest Pain",
+    ambulanceId: "AMB-8",
+    age: 65,
+    gender: "F",
+    status: "incoming",
+  },
+  {
+    id: "PAT-008",
+    ticketNumber: "T0008",
+    severity: "critical",
+    eta: "1 min",
+    location: { lat: 0, lng: 0, address: "Highway 101 Mile 15" },
+    vitals: {
+      heartRate: 135,
+      bloodPressure: { systolic: 155, diastolic: 105 },
+      oxygenSaturation: 85,
+      temperature: 41,
+      respiratoryRate: 34,
+    },
+    condition: "Burns",
+    ambulanceId: "AMB-18",
+    age: 53,
+    gender: "M",
+    status: "incoming",
+  },
+];
+
 const HospitalDashboard: React.FC = () => {
-  const [alerts,setAlerts] = useState<AlertItem[]>([]);
-  const [socketConnected,setSocketConnected] = useState(false);
-  const [loading,setLoading] = useState(true);
-  const socketRef = useRef<any>(null);
+  // Replace mockPatients with real data from backend when available
+  const patients = mockPatients;
 
-  useEffect(() => {
-    // initial load
-    fetch('http://localhost:5001/api/alerts/incoming',{ credentials: 'include'}).then(r=>{
-      if(!r.ok) throw new Error('Failed to load');
-      return r.json();
-    }).then(data=>{
-      setAlerts(data);
-      setLoading(false);
-    }).catch(()=> setLoading(false));
+  const [selectedPatient, setSelectedPatient] = React.useState<Patient | null>(
+    null
+  );
+  const [modalOpen, setModalOpen] = React.useState(false);
 
-    const s = io('http://localhost:5001',{ withCredentials: true });
-    socketRef.current = s;
-    s.on('connect', ()=> setSocketConnected(true));
-    fetch('http://localhost:5001/auth/me',{credentials:'include'}).then(r=>r.json()).then(me=>{
-      if(me.user && me.user.hospitalId){
-        s.emit('joinHospitalRoom', me.user.hospitalId);
-      }
-    });
-    s.on('alert:new', (payload:any)=>{
-      setAlerts(prev=> [payload.alert, ...prev]);
-    });
-    s.on('alert:update', (payload:any)=>{
-      setAlerts(prev=> prev.map(a=> a._id === payload.alert._id ? payload.alert : a));
-    });
+  const handleCardClick = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setModalOpen(true);
+  };
 
-    return () => { if(socketRef.current) socketRef.current.disconnect(); };
-  },[]);
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedPatient(null);
+  };
 
-  const updateStatus = async (id:string,status:string) => {
-    await fetch(`http://localhost:5001/api/alerts/${id}/status`, {
-      method:'PATCH',
-      headers:{'Content-Type':'application/json'},
-      credentials:'include',
-      body: JSON.stringify({ status })
-    });
+  const handleRejectPatient = (patientId: string) => {
+    // Add reject logic here if needed
+    setModalOpen(false);
+    setSelectedPatient(null);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-medical-50 to-blue-50 dark:from-gray-900 dark:to-slate-900 p-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold mb-6 text-medical-800 dark:text-medical-100 flex items-center gap-3">Hospital Dashboard <BadgeCheck className="w-6 h-6 text-emergency-500" /></h1>
-        <div className="mb-4 text-sm text-gray-600 dark:text-gray-300 flex gap-4 items-center">
-          <span className={socketConnected ? 'text-green-600' : 'text-red-600'}>Realtime: {socketConnected ? 'Connected' : 'Disconnected'}</span>
-          <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> Updated {new Date().toLocaleTimeString()}</span>
-        </div>
-        {loading && <div className="text-gray-500">Loading alerts...</div>}
-        {!loading && alerts.length === 0 && <div className="text-gray-500 flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-yellow-500" /> No incoming alerts.</div>}
-        <div className="grid md:grid-cols-2 gap-6 mt-4">
-          {alerts.map(alert => (
-            <div key={alert._id} className="bg-white dark:bg-gray-800 rounded-xl shadow p-5 border border-gray-100 dark:border-gray-700">
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h2 className="font-semibold text-medical-800 dark:text-medical-100">Alert #{alert._id.slice(-6)}</h2>
-                  <p className="text-xs text-gray-500">{new Date(alert.createdAt).toLocaleString()}</p>
-                </div>
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColors[alert.status] || 'bg-gray-200'}`}>{alert.status}</span>
-              </div>
-              {alert.priority && <p className="text-sm mb-1"><strong>Priority:</strong> {alert.priority}</p>}
-              {alert.vitalsSummary && <p className="text-sm mb-1"><strong>Vitals:</strong> {alert.vitalsSummary}</p>}
-              {alert.symptomsSummary && <p className="text-sm mb-1"><strong>Symptoms:</strong> {alert.symptomsSummary}</p>}
-              {alert.etaSeconds && <p className="text-sm mb-3"><strong>ETA:</strong> ~{Math.round(alert.etaSeconds/60)} min</p>}
-              <div className="flex gap-2 mt-2">
-                {alert.status === 'pending' && <button onClick={()=>updateStatus(alert._id,'acknowledged')} className="px-3 py-1 text-xs rounded bg-blue-600 text-white hover:bg-blue-700">Acknowledge</button>}
-                {alert.status !== 'arrived' && <button onClick={()=>updateStatus(alert._id,'arrived')} className="px-3 py-1 text-xs rounded bg-green-600 text-white hover:bg-green-700">Mark Arrived</button>}
-                {alert.status !== 'cancelled' && <button onClick={()=>updateStatus(alert._id,'cancelled')} className="px-3 py-1 text-xs rounded bg-gray-400 text-white hover:bg-gray-500">Cancel</button>}
-              </div>
-            </div>
+    <div className="min-h-screen bg-background text-foreground">
+      <HospitalHeader hospital={mockHospital} totalPatients={patients.length} />
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <h2 className="text-2xl font-bold mb-2 text-foreground">
+          Incoming Patients
+        </h2>
+        <p className="text-muted-foreground mb-6">
+          Real-time patient tracking and emergency management dashboard
+        </p>
+        <div className="grid md:grid-cols-4 sm:grid-cols-2 gap-6">
+          {patients.map((patient) => (
+            <PatientCard
+              key={patient.id}
+              patient={patient}
+              onClick={() => handleCardClick(patient)}
+            />
           ))}
         </div>
       </div>
+      <PatientDetails
+        patient={selectedPatient}
+        isOpen={modalOpen}
+        onClose={handleCloseModal}
+        onReject={handleRejectPatient}
+      />
     </div>
   );
 };
