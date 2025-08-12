@@ -237,6 +237,53 @@ app.get('/api/hospitals/nearby', async (req,res) => {
   }
 });
 
+// Google Places API nearby hospitals search
+app.get('/api/hospitals/places-nearby', async (req, res) => {
+  try {
+    const { lat, lng, radius = 10000 } = req.query; // radius in meters
+    if (!lat || !lng) {
+      return res.status(400).json({ error: 'lat and lng required' });
+    }
+
+    const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
+    if (!GOOGLE_PLACES_API_KEY) {
+      return res.status(500).json({ error: 'Google Places API key not configured' });
+    }
+
+    // Use Google Places API to find nearby hospitals
+    const placesUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radius}&type=hospital&key=${GOOGLE_PLACES_API_KEY}`;
+    
+    const response = await fetch(placesUrl);
+    const data = await response.json();
+
+    if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+      throw new Error(`Google Places API error: ${data.status}`);
+    }
+
+    // Filter and format results
+    const hospitals = data.results
+      .filter(place => 
+        place.business_status === 'OPERATIONAL' && 
+        place.types.some(type => ['hospital', 'medical_center', 'clinic', 'emergency_room'].includes(type))
+      )
+      .map(place => ({
+        place_id: place.place_id,
+        name: place.name,
+        vicinity: place.vicinity,
+        rating: place.rating,
+        types: place.types,
+        geometry: place.geometry,
+        opening_hours: place.opening_hours,
+        business_status: place.business_status
+      }));
+
+    res.json(hospitals);
+  } catch (err) {
+    console.error('Google Places API error:', err);
+    res.status(500).json({ error: 'Failed to fetch nearby hospitals from Google Places' });
+  }
+});
+
 // === ALERT CREATION ===
 app.post('/api/alerts', async (req,res) => {
   try {
@@ -297,6 +344,9 @@ app.post("/api/triage", async (req, res) => {
       additionalInfo,
       aiScore,
       aiInstructions,
+      selectedHospitalId,
+      selectedHospitalName,
+      selectedHospitalAddress,
       userId,
     } = req.body;
 
@@ -331,6 +381,9 @@ app.post("/api/triage", async (req, res) => {
       additionalInfo,
       aiScore,
       aiInstructions,
+      selectedHospitalId,
+      selectedHospitalName,
+      selectedHospitalAddress,
     });
 
     res.status(201).json({ triage });

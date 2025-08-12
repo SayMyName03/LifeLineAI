@@ -187,7 +187,7 @@ const PatientDataPreview: React.FC<PatientDataPreviewProps> = ({ data, onEdit, o
             onClick={onConfirm}
             className="h-14 px-8 text-lg font-bold bg-medical-600 hover:bg-medical-700 text-white rounded-xl shadow-lg"
           >
-            Confirm & Submit to Triage
+            Continue to Hospital Selection →
           </Button>
         </div>
       </CardContent>
