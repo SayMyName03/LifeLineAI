@@ -9,6 +9,20 @@ const EnRouteAlertSchema = new mongoose.Schema({
   priority: { type: String },
   vitalsSummary: String,
   symptomsSummary: String,
+  patientSnapshot: {
+    patientName: String,
+    age: Number,
+    gender: String,
+    heartRate: Number,
+    systolicBP: Number,
+    diastolicBP: Number,
+    temperature: Number,
+    oxygenSaturation: Number,
+    symptoms: [String],
+    additionalInfo: String
+  },
+  aiScore: Number,
+  aiInstructions: String,
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

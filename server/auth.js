@@ -352,19 +352,31 @@ app.post('/api/alerts/dispatch', async (req,res) => {
     if(!req.user) return res.status(401).json({ error: 'Unauthorized' });
     const { hospitalId, triageId, patient, aiScore, aiInstructions } = req.body;
     if(!hospitalId || !triageId) return res.status(400).json({ error: 'hospitalId and triageId required' });
-    // Simple summary using provided patient snapshot (fallback)
+    // Build vitals summary
     let vitalsSummary = '';
     if (patient) {
       const parts = [];
-      if (patient.heartRate) parts.push(`HR ${patient.heartRate}`);
-      if (patient.systolicBP && patient.diastolicBP) parts.push(`BP ${patient.systolicBP}/${patient.diastolicBP}`);
-      if (patient.temperature) parts.push(`Temp ${patient.temperature}`);
-      if (patient.oxygenSaturation) parts.push(`SpO2 ${patient.oxygenSaturation}%`);
+      if (patient.heartRate != null) parts.push(`HR ${patient.heartRate}`);
+      if (patient.systolicBP != null && patient.diastolicBP != null) parts.push(`BP ${patient.systolicBP}/${patient.diastolicBP}`);
+      if (patient.temperature != null) parts.push(`Temp ${patient.temperature}`);
+      if (patient.oxygenSaturation != null) parts.push(`SpO2 ${patient.oxygenSaturation}%`);
       vitalsSummary = parts.join(' | ');
     }
     const symptomsSummary = Array.isArray(patient?.symptoms) ? patient.symptoms.slice(0,4).join(', ') : '';
     const priority = aiScore != null ? (Number(aiScore) >= 8 ? 'critical' : Number(aiScore) >=5 ? 'urgent' : 'routine') : undefined;
-    const alert = await EnRouteAlert.create({ triageId, hospitalId, createdBy: req.user._id, vitalsSummary, symptomsSummary, priority });
+    const patientSnapshot = patient ? {
+      patientName: patient.patientName,
+      age: patient.age,
+      gender: patient.gender,
+      heartRate: patient.heartRate,
+      systolicBP: patient.systolicBP,
+      diastolicBP: patient.diastolicBP,
+      temperature: patient.temperature,
+      oxygenSaturation: patient.oxygenSaturation,
+      symptoms: patient.symptoms,
+      additionalInfo: patient.additionalInfo
+    } : undefined;
+    const alert = await EnRouteAlert.create({ triageId, hospitalId, createdBy: req.user._id, vitalsSummary, symptomsSummary, priority, patientSnapshot, aiScore, aiInstructions });
     io.to(`hospital:${hospitalId}`).emit('alert:new', { alert });
     res.status(201).json({ alert });
   } catch(err){
@@ -374,8 +386,9 @@ app.post('/api/alerts/dispatch', async (req,res) => {
 
 // === GET INCOMING ALERTS FOR HOSPITAL ===
 app.get('/api/alerts/incoming', async (req,res) => {
-  if (!req.user || req.user.role !== 'hospital') return res.status(403).json({ error: 'Forbidden' });
-  const alerts = await EnRouteAlert.find({ hospitalId: req.user.hospitalId }).sort({ createdAt: -1 }).limit(200);
+  if (!req.user || req.user.type !== 'hospital') return res.status(403).json({ error: 'Forbidden' });
+  const hospitalId = req.user._id; // hospital document itself stored in session
+  const alerts = await EnRouteAlert.find({ hospitalId }).sort({ createdAt: -1 }).limit(200);
   res.json(alerts);
 });
 

@@ -78,8 +78,41 @@ const NearestHospital = () => {
   }, [maxKm]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-medical-50 via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-slate-900 p-8">
-      <h1 className="text-5xl font-extrabold mb-10 text-medical-800 dark:text-medical-100 tracking-tight drop-shadow-lg">Nearest Hospitals</h1>
+    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-medical-50 via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-slate-900 p-8">
+      <div className="w-full max-w-6xl">
+        <h1 className="text-5xl font-extrabold mb-6 text-medical-800 dark:text-medical-100 tracking-tight drop-shadow-lg">Nearest Hospitals</h1>
+        {currentTriage && currentTriage.patient && (
+          <div className="mb-8 rounded-2xl shadow-lg border border-medical-200/60 dark:border-gray-700 bg-white/80 dark:bg-gray-900/70 backdrop-blur-sm p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-medical-700 dark:text-medical-100">Patient: {currentTriage.patient.patientName || 'Unknown'}</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Age: {currentTriage.patient.age || '—'} • Gender: {currentTriage.patient.gender || '—'}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Heart Rate: {currentTriage.patient.heartRate || '—'} bpm • BP: {currentTriage.patient.systolicBP || '—'}/{currentTriage.patient.diastolicBP || '—'} • Temp: {currentTriage.patient.temperature || '—'}° • SpO₂: {currentTriage.patient.oxygenSaturation || '—'}%
+                </p>
+                {Array.isArray(currentTriage.patient.symptoms) && currentTriage.patient.symptoms.length > 0 && (
+                  <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                    Symptoms: {currentTriage.patient.symptoms.join(', ')}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col items-start md:items-end gap-2 min-w-[180px]">
+                {currentTriage.aiScore != null && (
+                  <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-emergency-500 text-white shadow">
+                    AI Score: {currentTriage.aiScore}/10
+                  </span>
+                )}
+                <button
+                  onClick={()=> { sessionStorage.removeItem('currentTriage'); window.location.reload(); }}
+                  className="text-xs px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+                >Clear Patient</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
       {error && <div className="text-red-500 mb-4">{error}</div>}
       {!userLoc && !error && <div className="text-gray-500 animate-pulse">Getting your location...</div>}
       {userLoc && (
@@ -114,7 +147,15 @@ const NearestHospital = () => {
                         {idx === 0 && <span className="ml-2 px-3 py-1 rounded-full bg-emergency-500 text-white text-xs font-bold animate-pulse">Nearest</span>}
                       </div>
                       <div className="flex gap-2 mb-2">
-                        <button onClick={()=> setSelectedHospitalId(h._id)} className={`px-3 py-1 text-xs rounded ${selectedHospitalId === h._id ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200'}`}>{selectedHospitalId === h._id ? 'Selected' : 'Select'}</button>
+                        <button
+                          onClick={()=> setSelectedHospitalId(h._id)}
+                          className={`px-3 py-1 text-xs rounded transition ${selectedHospitalId === h._id ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200'}`}
+                        >
+                          {selectedHospitalId === h._id ? 'Selected' : 'Select'}
+                        </button>
+                        {dispatchedIds.has(h._id) && (
+                          <span className="px-2 py-1 text-[10px] rounded bg-green-600 text-white font-semibold">Notified</span>
+                        )}
                       </div>
                       {dist !== undefined && (
                         <div className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
@@ -126,41 +167,41 @@ const NearestHospital = () => {
                         <button
                           onClick={async ()=> {
                             const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLoc.lat},${userLoc.lng}&destination=${lat},${lng}`;
-                            // If already dispatched or no triage, just open maps
-                            if(dispatchedIds.has(h._id) || !currentTriage){
-                              window.open(mapsUrl,'_blank','noopener,noreferrer');
-                              return;
-                            }
-                            try {
-                              setDispatchingId(h._id);
-                              const res = await fetch('http://localhost:5001/api/alerts/dispatch', {
-                                method:'POST',
-                                headers:{'Content-Type':'application/json'},
-                                credentials:'include',
-                                body: JSON.stringify({
-                                  hospitalId: h._id,
-                                  triageId: currentTriage.triageId,
-                                  patient: currentTriage.patient,
-                                  aiScore: currentTriage.aiScore,
-                                  aiInstructions: currentTriage.aiInstructions
-                                })
-                              });
-                              if(!res.ok) throw new Error('Failed to dispatch');
-                              sessionStorage.removeItem('currentTriage');
-                              setDispatchedIds(prev => new Set(prev).add(h._id));
-                              toast({ title: 'Hospital Notified', description: `${h.name} has received the patient alert.` });
-                            } catch(e){
-                              console.error(e);
-                              toast({ title: 'Dispatch Failed', description: 'Could not notify hospital.', variant: 'destructive' });
-                            } finally {
-                              setDispatchingId(null);
+                            // dispatch only if not done yet and triage available
+                            if(!dispatchedIds.has(h._id) && currentTriage){
+                              try {
+                                setDispatchingId(h._id);
+                                const res = await fetch('http://localhost:5001/api/alerts/dispatch', {
+                                  method:'POST',
+                                  headers:{'Content-Type':'application/json'},
+                                  credentials:'include',
+                                  body: JSON.stringify({
+                                    hospitalId: h._id,
+                                    triageId: currentTriage.triageId,
+                                    patient: currentTriage.patient,
+                                    aiScore: currentTriage.aiScore,
+                                    aiInstructions: currentTriage.aiInstructions
+                                  })
+                                });
+                                if(!res.ok) throw new Error('Dispatch failed');
+                                sessionStorage.removeItem('currentTriage');
+                                setDispatchedIds(prev => new Set(prev).add(h._id));
+                                toast({ title: 'Hospital Notified', description: `${h.name} has been notified.` });
+                              } catch(e){
+                                console.error(e);
+                                toast({ title: 'Dispatch Failed', description: 'Could not notify hospital.', variant: 'destructive' });
+                              } finally {
+                                setDispatchingId(null);
+                                window.open(mapsUrl,'_blank','noopener,noreferrer');
+                              }
+                            } else {
                               window.open(mapsUrl,'_blank','noopener,noreferrer');
                             }
                           }}
                           disabled={dispatchingId === h._id}
                           className="inline-block mt-2 px-6 py-3 bg-emergency-500 text-white rounded-lg font-bold shadow hover:bg-emergency-600 transition disabled:opacity-60"
                         >
-                          {dispatchingId === h._id ? 'Sending...' : (dispatchedIds.has(h._id) ? 'Open Directions' : 'Get Directions & Notify')}
+                          {dispatchingId === h._id ? 'Notifying...' : dispatchedIds.has(h._id) ? 'Open Directions' : 'Get Directions & Notify'}
                         </button>
                       )}
                     </div>
