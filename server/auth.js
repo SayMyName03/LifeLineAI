@@ -311,28 +311,19 @@ app.post('/api/alerts/dispatch', async (req,res) => {
     if(!req.user) return res.status(401).json({ error: 'Unauthorized' });
     const { hospitalId, triageId, patient, aiScore, aiInstructions } = req.body;
     if(!hospitalId || !triageId) return res.status(400).json({ error: 'hospitalId and triageId required' });
-
-    // Create a concise summary; optionally could look up triage details for vitals/symptoms
+    // Simple summary using provided patient snapshot (fallback)
     let vitalsSummary = '';
     if (patient) {
-      const vitalsParts = [];
-      if (patient.heartRate) vitalsParts.push(`HR ${patient.heartRate}`);
-      if (patient.systolicBP && patient.diastolicBP) vitalsParts.push(`BP ${patient.systolicBP}/${patient.diastolicBP}`);
-      if (patient.temperature) vitalsParts.push(`Temp ${patient.temperature}`);
-      if (patient.oxygenSaturation) vitalsParts.push(`SpO2 ${patient.oxygenSaturation}%`);
-      vitalsSummary = vitalsParts.join(' | ');
+      const parts = [];
+      if (patient.heartRate) parts.push(`HR ${patient.heartRate}`);
+      if (patient.systolicBP && patient.diastolicBP) parts.push(`BP ${patient.systolicBP}/${patient.diastolicBP}`);
+      if (patient.temperature) parts.push(`Temp ${patient.temperature}`);
+      if (patient.oxygenSaturation) parts.push(`SpO2 ${patient.oxygenSaturation}%`);
+      vitalsSummary = parts.join(' | ');
     }
-    let symptomsSummary = Array.isArray(patient?.symptoms) ? patient.symptoms.slice(0,4).join(', ') : '';
-
+    const symptomsSummary = Array.isArray(patient?.symptoms) ? patient.symptoms.slice(0,4).join(', ') : '';
     const priority = aiScore != null ? (Number(aiScore) >= 8 ? 'critical' : Number(aiScore) >=5 ? 'urgent' : 'routine') : undefined;
-    const alert = await EnRouteAlert.create({
-      triageId,
-      hospitalId,
-      createdBy: req.user._id,
-      priority,
-      vitalsSummary,
-      symptomsSummary
-    });
+    const alert = await EnRouteAlert.create({ triageId, hospitalId, createdBy: req.user._id, vitalsSummary, symptomsSummary, priority });
     io.to(`hospital:${hospitalId}`).emit('alert:new', { alert });
     res.status(201).json({ alert });
   } catch(err){

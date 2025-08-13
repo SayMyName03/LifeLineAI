@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useToast } from '@/hooks/use-toast';
 import { Hospital, MapPin, RefreshCw } from "lucide-react";
 
 interface HospitalDoc {
@@ -33,7 +34,9 @@ const NearestHospital = () => {
   const [error, setError] = useState("");
   const [maxKm, setMaxKm] = useState(25);
   const [selectedHospitalId,setSelectedHospitalId] = useState<string | null>(null);
-  const [dispatching,setDispatching] = useState(false);
+  const [dispatchingId,setDispatchingId] = useState<string | null>(null);
+  const [dispatchedIds,setDispatchedIds] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
 
   const currentTriage = React.useMemo(() => {
     try { return JSON.parse(sessionStorage.getItem('currentTriage') || 'null'); } catch { return null; }
@@ -112,10 +115,24 @@ const NearestHospital = () => {
                       </div>
                       <div className="flex gap-2 mb-2">
                         <button onClick={()=> setSelectedHospitalId(h._id)} className={`px-3 py-1 text-xs rounded ${selectedHospitalId === h._id ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200'}`}>{selectedHospitalId === h._id ? 'Selected' : 'Select'}</button>
-                        {selectedHospitalId === h._id && currentTriage && (
-                          <button disabled={dispatching} onClick={async ()=> {
-                            if(!currentTriage) return; setDispatching(true);
+                      </div>
+                      {dist !== undefined && (
+                        <div className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
+                          <MapPin className="w-5 h-5 text-blue-500" />
+                          <span>Distance: {dist.toFixed(2)} km</span>
+                        </div>
+                      )}
+                      {lat && lng && (
+                        <button
+                          onClick={async ()=> {
+                            const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLoc.lat},${userLoc.lng}&destination=${lat},${lng}`;
+                            // If already dispatched or no triage, just open maps
+                            if(dispatchedIds.has(h._id) || !currentTriage){
+                              window.open(mapsUrl,'_blank','noopener,noreferrer');
+                              return;
+                            }
                             try {
+                              setDispatchingId(h._id);
                               const res = await fetch('http://localhost:5001/api/alerts/dispatch', {
                                 method:'POST',
                                 headers:{'Content-Type':'application/json'},
@@ -129,29 +146,22 @@ const NearestHospital = () => {
                                 })
                               });
                               if(!res.ok) throw new Error('Failed to dispatch');
-                              // On success we could redirect or clear the stored triage
                               sessionStorage.removeItem('currentTriage');
+                              setDispatchedIds(prev => new Set(prev).add(h._id));
+                              toast({ title: 'Hospital Notified', description: `${h.name} has received the patient alert.` });
                             } catch(e){
                               console.error(e);
-                            } finally { setDispatching(false); }
-                          }} className="px-3 py-1 text-xs rounded bg-emergency-500 text-white hover:bg-emergency-600">{dispatching ? 'Sending...' : 'Notify Hospital'}</button>
-                        )}
-                      </div>
-                      {dist !== undefined && (
-                        <div className="flex items-center gap-2 mb-2 text-gray-700 dark:text-gray-300">
-                          <MapPin className="w-5 h-5 text-blue-500" />
-                          <span>Distance: {dist.toFixed(2)} km</span>
-                        </div>
-                      )}
-                      {lat && lng && (
-                        <a
-                          href={`https://www.google.com/maps/dir/?api=1&origin=${userLoc.lat},${userLoc.lng}&destination=${lat},${lng}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-block mt-2 px-6 py-3 bg-emergency-500 text-white rounded-lg font-bold shadow hover:bg-emergency-600 transition"
+                              toast({ title: 'Dispatch Failed', description: 'Could not notify hospital.', variant: 'destructive' });
+                            } finally {
+                              setDispatchingId(null);
+                              window.open(mapsUrl,'_blank','noopener,noreferrer');
+                            }
+                          }}
+                          disabled={dispatchingId === h._id}
+                          className="inline-block mt-2 px-6 py-3 bg-emergency-500 text-white rounded-lg font-bold shadow hover:bg-emergency-600 transition disabled:opacity-60"
                         >
-                          Get Directions with Google Maps
-                        </a>
+                          {dispatchingId === h._id ? 'Sending...' : (dispatchedIds.has(h._id) ? 'Open Directions' : 'Get Directions & Notify')}
+                        </button>
                       )}
                     </div>
                   );

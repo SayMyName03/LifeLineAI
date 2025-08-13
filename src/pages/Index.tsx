@@ -111,8 +111,9 @@ const Index = () => {
       });
       if (!response.ok) throw new Error('Submission failed');
       // Expect backend returns created triage record (with _id)
-      const triageRecord = await response.json().catch(()=> null);
-      if (triageRecord && triageRecord._id) {
+  const triageResp = await response.json().catch(()=> null);
+  const triageRecord = triageResp && (triageResp.triage || triageResp);
+  if (triageRecord && triageRecord._id) {
         // Persist minimal data so hospital selection page can dispatch it
         sessionStorage.setItem('currentTriage', JSON.stringify({
           triageId: triageRecord._id,
