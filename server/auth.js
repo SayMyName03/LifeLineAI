@@ -64,7 +64,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // === PASSPORT STRATEGIES ===
-passport.use(new LocalStrategy({ usernameField: "email" }, async (email, password, done) => {
+// Local Strategy for User (email + password)
+passport.use('user-local', new LocalStrategy({ usernameField: "email" }, async (email, password, done) => {
   try {
     const user = await User.findOne({ email });
     if (!user) return done(null, false, { message: "Incorrect email." });
@@ -72,6 +73,24 @@ passport.use(new LocalStrategy({ usernameField: "email" }, async (email, passwor
     const match = await bcrypt.compare(password, user.password);
     if (!match) return done(null, false, { message: "Incorrect password." });
     return done(null, user);
+  } catch (err) {
+    return done(err);
+  }
+}));
+
+// Local Strategy for Hospital (name + password)
+passport.use('hospital-local', new LocalStrategy({ 
+  usernameField: "hospitalName",
+  passwordField: "password" 
+}, async (hospitalName, password, done) => {
+  try {
+    const hospital = await Hospital.findOne({ name: hospitalName });
+    if (!hospital) return done(null, false, { message: "Hospital not found." });
+    if (!hospital.password) return done(null, false, { message: "No password set for this hospital." });
+    const match = await bcrypt.compare(password, hospital.password);
+    if (!match) return done(null, false, { message: "Incorrect password." });
+    // Add a type field to distinguish hospitals from users in session
+    return done(null, { ...hospital.toObject(), type: 'hospital' });
   } catch (err) {
     return done(err);
   }
@@ -100,19 +119,37 @@ passport.use(new GoogleStrategy({
   }
 }));
 
-passport.serializeUser((user, done) => done(null, user.id));
-passport.deserializeUser(async (id, done) => {
+passport.serializeUser((entity, done) => {
+  if (entity.type === 'hospital') {
+    done(null, { id: entity._id, type: 'hospital' });
+  } else {
+    done(null, { id: entity.id, type: 'user' });
+  }
+});
+
+passport.deserializeUser(async (obj, done) => {
   try {
-    const user = await User.findById(id);
-    done(null, user);
+    if (obj.type === 'hospital') {
+      const hospital = await Hospital.findById(obj.id);
+      done(null, hospital ? { ...hospital.toObject(), type: 'hospital' } : null);
+    } else {
+      const user = await User.findById(obj.id);
+      done(null, user);
+    }
   } catch (err) {
     done(err);
   }
 });
 
 // === AUTH ROUTES ===
-app.post("/auth/login", passport.authenticate("local"), (req, res) => {
+// User login (email + password)
+app.post("/auth/login", passport.authenticate("user-local"), (req, res) => {
   res.json({ user: req.user });
+});
+
+// Hospital login (hospital name + password)
+app.post("/auth/hospital-login", passport.authenticate("hospital-local"), (req, res) => {
+  res.json({ hospital: req.user });
 });
 
 // Capture desired role via query (?role=clinician|hospital) before kicking off Google OAuth
@@ -168,7 +205,11 @@ app.post("/auth/logout", (req, res) => {
 
 app.get("/auth/me", (req, res) => {
   if (req.isAuthenticated && req.isAuthenticated()) {
-    res.json({ user: req.user });
+    if (req.user.type === 'hospital') {
+      res.json({ hospital: req.user });
+    } else {
+      res.json({ user: req.user });
+    }
   } else {
     res.status(401).json({ error: "Not authenticated" });
   }

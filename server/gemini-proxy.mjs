@@ -31,9 +31,22 @@ app.post('/api/gemini', async (req, res) => {
       body: JSON.stringify(body)
     });
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API error:', errorText);
-      return res.status(500).json({ error: 'Gemini API error', details: errorText });
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Gemini API error:', errorData);
+      
+      // Check if it's a quota exceeded error (429)
+      if (errorData?.error?.code === 429) {
+        return res.status(500).json({ 
+          error: 'Gemini API quota exceeded', 
+          details: 'Daily quota limit reached. Please try again tomorrow or upgrade your plan.',
+          quotaExceeded: true
+        });
+      }
+      
+      return res.status(500).json({ 
+        error: 'Gemini API error', 
+        details: errorData?.error?.message || 'Unknown API error' 
+      });
     }
     const data = await response.json();
     let instructions = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No instructions received from Gemini.';
