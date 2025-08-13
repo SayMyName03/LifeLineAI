@@ -173,6 +173,7 @@ const Index = () => {
               >
                 <PatientDataPreview
                   data={patientData}
+                  criticalityScore={aiScore ? Number(aiScore) : null}
                   onEdit={handleEdit}
                   onConfirm={handleConfirm}
                 />
