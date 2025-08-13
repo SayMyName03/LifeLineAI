@@ -80,10 +80,26 @@ const Index = () => {
       setInstructions(result);
       setAiScore(extractScore(result));
       setAiInstructions(result);
+      
+      // Check if this was a fallback response
+      if (result.includes('Criticality Score:') && !result.includes('Error:')) {
+        // Success - either from Gemini or fallback triage logic
+        if (!result.includes('Gemini')) {
+          toast({
+            title: "AI Assessment Complete",
+            description: "Using clinical decision support system (Gemini API temporarily unavailable)",
+          });
+        }
+      }
     } catch (err) {
-      setInstructions('Failed to get instructions from Gemini.');
-      setAiScore(null);
+      setInstructions('Clinical assessment temporarily unavailable. Please proceed with manual triage.');
+      setAiScore('5'); // Default medium priority
       setAiInstructions(null);
+      toast({
+        title: "AI Assessment Unavailable",
+        description: "Proceeding with manual triage protocols. Please assess patient using clinical judgment.",
+        variant: "destructive"
+      });
     } finally {
       setLoadingInstructions(false);
     }

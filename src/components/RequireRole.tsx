@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-interface MeResponse { user?: { role?: string } }
+interface MeResponse { 
+  user?: { role?: string };
+  hospital?: { type?: string; name?: string };
+}
 
 interface Props {
   allow: 'clinician' | 'hospital';
@@ -22,13 +25,20 @@ const RequireRole: React.FC<Props> = ({ allow, children }) => {
       })
       .then(data => {
         if (cancelled) return;
-        if (!data.user) {
+        
+        // Check if user or hospital is authenticated
+        const entity = data.user || data.hospital;
+        if (!entity) {
           navigate('/login', { replace: true, state: { from: location.pathname } });
           setStatus('redirect');
           return;
         }
-        if (data.user.role !== allow) {
-          const target = data.user.role === 'hospital' ? '/hospital/dashboard' : '/triage';
+        
+        // Determine current role - for hospitals, role is always 'hospital'
+        const currentRole = data.hospital ? 'hospital' : data.user?.role;
+        
+        if (currentRole !== allow) {
+          const target = currentRole === 'hospital' ? '/hospital/dashboard' : '/triage';
           if (location.pathname !== target) {
             navigate(target, { replace: true });
             setStatus('redirect');
